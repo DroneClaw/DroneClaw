@@ -1,0 +1,3 @@
+[submodule "libs/EventLoopScheduler"]
+	path = libs/EventLoopScheduler
+	url = https://github.com/ewized/EventLoopScheduler.git
