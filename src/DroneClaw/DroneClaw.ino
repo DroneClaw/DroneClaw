@@ -9,6 +9,8 @@
 
 void println(String);
 
+EventLoop &scheduler = EventLoop::get();
+
 // The main instance of the drone claw used to pass around data with
 struct Drone {
     static const byte SERVOS = 4;
@@ -44,7 +46,7 @@ void all(const byte number) {
     byte number;
   } _;
   _.number = number;
-  EventLoop::get().execute([] () {
+  scheduler.execute([] () {
     for (byte i = 0; i < Drone::SERVOS; i++) {
       println("Executing esc " + String(i + 1) + " with " + String(_.number));
       drone.servos[i].write(_.number);
@@ -94,10 +96,10 @@ void working() {
   const byte LED = 13;
   pinMode(LED, OUTPUT);
   // Turn on the LED every 2 secs
-  EventLoop::get().repeat([] () {
+  scheduler.repeat([] () {
     digitalWrite(LED, HIGH);
     // Turn off the LED off after 1 sec
-    EventLoop::get().execute([] () {
+    scheduler.execute([] () {
       digitalWrite(LED, LOW);
     }, 1, SECONDS);
   }, 2, SECONDS);
@@ -106,7 +108,7 @@ void working() {
 /** Console the manage debug commands */
 void console() {
   #ifdef DEBUG
-  EventLoop::get().repeat([] () {
+  scheduler.repeat([] () {
     if (Serial.available()) {
       String value = Serial.readString();
       String cmd = value.substring(0, value.indexOf(' '));
@@ -130,5 +132,5 @@ void console() {
 }
 
 void loop() {
-    EventLoop::get().process(); // The backbone of the system
+    scheduler.process(); // The backbone of the system
 }
