@@ -21,6 +21,8 @@ EventLoop &scheduler = EventLoop::get();
 struct Drone {
     static const byte SERVOS = 4;
     Servo servos[SERVOS];
+    boolean primed = false;
+    boolean armed = false;
     /** Init the drone */
     inline Drone() {
       //println("Constructing the Drone...");
@@ -64,18 +66,21 @@ void all(const byte number) {
 void prime() {
   println("Priming...");
   all(1);
+  drone.primed = true;
 }
 
 /** Arm the motors spining at lowest speed */
 void arm() {
   println("Arming...");
   all(50);
+  drone.armed = true;
 }
 
 /** Stop all the motors */
 void disarm() {
   println("Disarming...");
   all(0);
+  drone.armed = false;
 }
 
 /** Print a message to the Serial only when debug is defined */
@@ -95,6 +100,18 @@ void setup() {
   console();
   working();
   attach();
+  scheduler.execute(prime, 1, SECONDS);
+  scheduler.execute(arm, 5, SECONDS);
+  // Test the flight
+  scheduler.repeat([] () {
+    if (drone.primed && drone.armed) {
+      int mapped = map(analogRead(A0), 200, 1024, 0, 130) + 50;
+      int value = mapped < 50 ? 0 : mapped;
+      if (value > 0) {
+        all(value);
+      }
+    }
+  }, 50, MILLIS);
 }
 
 /** Simple working led */
