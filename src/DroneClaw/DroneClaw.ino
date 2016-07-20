@@ -9,6 +9,7 @@
 //#define DEBUG
 
 // Escs
+#define SERVOS 4
 #define FL_ESC 5
 #define FR_ESC 6
 #define BL_ESC 10
@@ -19,33 +20,22 @@
 #define BT_RX 8
 #define BT_TX 9
 
+#define PACKETS 4
+
+#define BUAD 9600
+
 void println(String);
 void attach();
+void all(byte);
 void working();
 
 EventLoop &scheduler = EventLoop::get();
 
-// The main instance of the drone claw used to pass around data with
-struct Drone {
-    static const byte SERVOS = 4;
-    Servo servos[SERVOS];
-    SoftwareSerial bluetooth = SoftwareSerial(BT_RX, BT_TX);
-    Servo claw = Servo();
-    /** Init the drone */
-    inline Drone() {
-      //println("Constructing the Drone...");
-      for (byte i = 0; i < SERVOS; i++) {
-        servos[i] = Servo();
-      }
-      bluetooth.begin(9600);
-      claw.attach(CLAW);
-    }
-    static void attach();
-    static void all(const byte);
-    static void prime();
-    static void arm();
-    static void disarm();
-} drone;
+const byte pwms[] = {FL_ESC, FR_ESC, BL_ESC, BR_ESC};
+
+Servo servos[SERVOS];
+SoftwareSerial bluetooth(BT_RX, BT_TX);
+Servo claw;
 
 /** The packet class that can encode and decode data*/
 class Packet {
@@ -61,8 +51,6 @@ class Packet {
     inline void decode(SoftwareSerial &data) {
       _function(data);
     }
-    /** Will process the incomming packets */
-    static void process_packets();
 };
 
 /** The packets the drone knows how to handle */
@@ -73,80 +61,43 @@ Packet packets[] = {
   }),
   // Prime and arm packet, echo packet
   Packet(0x02, [] (SoftwareSerial &data) {
-    Drone::prime();
-    Drone::arm();
+    all(1);
+    delay(250);
+    all(50);
   }),
   // Send the pos to the claw
   Packet(0x03, [] (SoftwareSerial &data) {
     int pos = data.readString().toInt();
     println("Claw Position: " + String(pos));
-    drone.claw.write(data.readString().toInt());
+    claw.write(pos);
   }),
   // Send data to all escs
   Packet(0x04, [] (SoftwareSerial &data) {
     byte pos = (byte) data.readString().toInt();
-    Drone::all(pos);
+    all(pos);
   }),
 };
 
 /** Will process the incomming packets */
-void Packet::process_packets()  {
-  if (drone.bluetooth.available() > 0) {
-    byte packet = drone.bluetooth.read() - 'a'; // Get the packet id, treat a = 0, b = 2 ...
-    if (packet >= 0) {
+void process_packets() {
+  if (bluetooth.available()) {
+    byte packet = bluetooth.read() - 'a'; // Get the packet id, treat a = 0, b = 2 ...
+    if (packet >= 0 && packet < PACKETS) {
       println("Packet ID: " + String(packet));
-      packets[packet].decode(drone.bluetooth); // Lets the packet process the rest of the data
+      packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
+    } else {
+      println("Not a valid packet id");
     }
   }
-}
-
-/** Attach all the esc to the servo instances */
-void Drone::attach() {
-  static const byte pwms[] = {FL_ESC, FR_ESC, BL_ESC, BR_ESC};
-  static byte tmp = 0;
-  for (byte i = 0; i < Drone::SERVOS; i++) {
-    scheduler.execute([] () {
-      println("Attaching esc " + String(tmp + 1) + " to " + String(pwms[tmp]));
-      drone.servos[tmp++].attach(pwms[tmp]);
-    });
-  }
-  // Reset tmp back to 0
-  scheduler.execute([] () {
-    tmp = 0;
-  });
 }
 
 /** Send a value to all the motors */
-void Drone::all(const byte number) {
-  static struct _ {
-    byte number;
-  } _;
-  _.number = number;
-  scheduler.execute([] () {
-    for (byte i = 0; i < Drone::SERVOS; i++) {
-      println("Executing esc " + String(i + 1) + " with " + String(_.number));
-      drone.servos[i].write(_.number);
-      delay(5);
-    }
-  });
-}
-
-/** Prime the esc's by sending value 1 */
-void Drone::prime() {
-  println("Priming...");
-  all(1);
-}
-
-/** Arm the motors spining at lowest speed */
-void Drone::arm() {
-  println("Arming...");
-  all(50);
-}
-
-/** Stop all the motors */
-void Drone::disarm() {
-  println("Disarming...");
-  all(0);
+void all(const byte number) {
+  for (byte i = 0; i < SERVOS; i++) {
+    println("Executing esc " + String(i + 1) + " with " + String(number));
+    servos[i].write(number);
+    delay(5);
+  }
 }
 
 /** Print a message to the Serial only when debug is defined */
@@ -154,36 +105,35 @@ void println(String msg) {
   #ifdef DEBUG
   static boolean begin = true;
   if (begin) {
-    Serial.begin(9600);
+    Serial.begin(BUAD);
     begin = false;
   }
   Serial.println(msg);
   #endif
-  drone.bluetooth.println(msg);
-}
-
-
-/** Simple working led */
-void working() {
-  const byte LED = 13;
-  pinMode(LED, OUTPUT);
-  // Turn on the LED every 2 secs
-  scheduler.repeat([] () {
-    digitalWrite(LED, HIGH);
-    // Turn off the LED off after 1 sec
-    scheduler.execute([] () {
-      digitalWrite(LED, LOW);
-    }, 1, SECONDS);
-  }, 2, SECONDS);
+  bluetooth.println(msg);
 }
 
 void setup() {
-  println("DroneClaw");
-  working();
-  Drone::attach();
-  scheduler.repeat(Packet::process_packets);
+  bluetooth.begin(BUAD);
+
+  // Make sure the connection is established
+  while(!bluetooth.available() || bluetooth.read() != 'a');
+  
+  println("\n----- DroneClaw -----\n");
+
+  // Set up escs
+  for (byte i = 0; i < SERVOS; i++) {
+    servos[i] = Servo();
+    println("Attaching esc " + String(i) + " to " + String(pwms[i]));
+    servos[i].attach(pwms[i]);
+  }
+
+  claw.attach(CLAW);
+  
+  // Handle the packets
+  scheduler.repeat(process_packets);
 }
 
 void loop() {
-    scheduler.process(); // The backbone of the system
+  scheduler.process(); // The backbone of the system
 }
