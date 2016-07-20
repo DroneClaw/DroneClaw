@@ -56,24 +56,22 @@ class Packet {
 /** The packets the drone knows how to handle */
 Packet packets[] = {
   // Ping packet used to make sure there is a connection
-  Packet(0x01, [] (SoftwareSerial &data) {
+  Packet(0x00, [] (SoftwareSerial &data) {
     // todo if last heart beat fails do something
   }),
   // Prime and arm packet, echo packet
-  Packet(0x02, [] (SoftwareSerial &data) {
+  Packet(0x01, [] (SoftwareSerial &data) {
     all(1);
-    delay(250);
-    all(50);
   }),
   // Send the pos to the claw
-  Packet(0x03, [] (SoftwareSerial &data) {
-    int pos = data.readString().toInt();
+  Packet(0x02, [] (SoftwareSerial &data) {
+    int pos = data.parseInt();
     println("Claw Position: " + String(pos));
     claw.write(pos);
   }),
   // Send data to all escs
-  Packet(0x04, [] (SoftwareSerial &data) {
-    byte pos = (byte) data.readString().toInt();
+  Packet(0x03, [] (SoftwareSerial &data) {
+    int pos = data.parseInt();
     all(pos);
   }),
 };
@@ -81,7 +79,7 @@ Packet packets[] = {
 /** Will process the incomming packets */
 void process_packets() {
   if (bluetooth.available()) {
-    byte packet = bluetooth.read() - 'a'; // Get the packet id, treat a = 0, b = 2 ...
+    byte packet = bluetooth.parseInt(); // Get the packet id
     if (packet >= 0 && packet < PACKETS) {
       println("Packet ID: " + String(packet));
       packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
@@ -117,7 +115,7 @@ void setup() {
   bluetooth.begin(BUAD);
 
   // Make sure the connection is established
-  while(!bluetooth.available() || bluetooth.read() != 'a');
+  while(!bluetooth.available() || bluetooth.parseInt() != 0);
   
   println("\n----- DroneClaw -----\n");
 
