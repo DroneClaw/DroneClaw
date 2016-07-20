@@ -21,10 +21,6 @@
 
 void println(String);
 void attach();
-void all();
-void prime();
-void arm();
-void disarm();
 void working();
 
 EventLoop &scheduler = EventLoop::get();
