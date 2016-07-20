@@ -1,20 +1,26 @@
+#include <SoftwareSerial.h>
+
 char val;
 int ledpin = 8;
+
+SoftwareSerial p(2,3);
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(ledpin,OUTPUT);
-  Serial.begin(9600);
+  //pinMode(7, OUTPUT);
+  //digitalWrite(7, HIGH);
+  p.begin(9600);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(Serial.available()) {
-    val = Serial.read();
+  if(p.available()) {
+    val = p.read();
   }
-  if(val == 'H') {
+  if(val == 'U') {
     digitalWrite(ledpin,HIGH);
-    Serial.write("Hello World\n");
+    p.write("Hi\n");
   } else { digitalWrite(ledpin,LOW); }
   delay(100);
 }
