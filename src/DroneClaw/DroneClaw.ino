@@ -7,23 +7,21 @@
 #include <Wire.h>
 
 // Will enable debug code throught the program
-//#define DEBUG
+#define DEBUG
 
-// Escs
 #define SERVOS 4
 #define FL_ESC 5
 #define FR_ESC 6
 #define BL_ESC 10
 #define BR_ESC 11
-
 #define CLAW 3
-
 #define BT_RX 8
 #define BT_TX 9
-
 #define PACKETS 4
+#define BAUD 9600
 
-#define BUAD 9600
+#define FEQ (1.0 / (250.0 * 65.5))
+#define RAD (FEQ * (PI / 180.0))
 
 #ifdef DEBUG
 void println(String);
@@ -55,6 +53,7 @@ class MPU {
       Wire.write(START_ADDRESS);
       Wire.endTransmission();
       Wire.requestFrom(ADDRESS, 14);
+      while (Wire.available() < 14);
       gyro_x = Wire.read() << 8 | Wire.read();
       gyro_y = Wire.read() << 8 | Wire.read();
       gyro_z = Wire.read() << 8 | Wire.read();
@@ -166,7 +165,7 @@ void all(const byte number) {
 void println(String msg) {
   static boolean begin = true;
   if (begin) {
-    Serial.begin(BUAD);
+    Serial.begin(BAUD);
     begin = false;
   }
   Serial.println(msg);
@@ -176,7 +175,7 @@ void println(String msg) {
 
 void setup() {
   // Get the sensors and ect ready before bluetooth connection is established
-  bluetooth.begin(BUAD);
+  bluetooth.begin(BAUD);
   claw.attach(CLAW);
   MPU::init();
   
