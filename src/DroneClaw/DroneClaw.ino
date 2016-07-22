@@ -8,7 +8,6 @@
 
 // Will enable debug code throught the program
 //#define DEBUG
-//#define BT_DEBUG
 
 // Escs
 #define SERVOS 4
