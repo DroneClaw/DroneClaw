@@ -29,15 +29,12 @@ void working();
 void control();
 
 EventLoop &scheduler = EventLoop::get();
-
 const byte pwms[] = {FL_ESC, FR_ESC, BL_ESC, BR_ESC};
-
 struct data {
   int throttle = 0;
   int pitch = 0;
   int roll = 0;
 } drone;
-
 int offset[3] = {0, 0, 0}; // x, y, z
 Servo servos[SERVOS];
 SoftwareSerial bluetooth(BT_RX, BT_TX);
@@ -136,12 +133,7 @@ Packet packets[] = {
   }),
   // Send data to all escs
   Packet(0x03, [] (Stream &data) {
-    int pos = data.parseInt();
-    //all(pos);
-    drone.throttle = pos;
-
-    //drone.pitch = data.parseInt();
-    //drone.roll = data.parseInt();
+    drone.throttle = data.parseInt();
   }),
 };
 
@@ -182,25 +174,48 @@ void all(const byte number) {
 /** The main control loop */
 void control() {
   int throttle = drone.throttle;
-  
-  if (throttle < 1000) return;
-  
+  // when throttle is less than 1000 disable escs
+  if (throttle < 1000) {
+    servos[1].writeMicroseconds(0);
+    servos[3].writeMicroseconds(0);
+    servos[0].writeMicroseconds(0);
+    servos[2].writeMicroseconds(0);
+    return;
+  }
+  // caculate the pids
   MPU mpu;
   int pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
   int roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
-  pitch *= 2;
+  pitch *= 1.1;
   roll *= 2;
+  int abs_pitch = abs(pitch);
+  int abs_roll = abs(roll);
   int fl = throttle, fr = throttle, bl = throttle, br = throttle;
-  
-  bl += pitch;
-  br += pitch;
-  fl -= pitch;
-  fr -= pitch;
-  bl -= roll;
-  br += roll;
-  fl -= roll;
-  fr += roll;
-
+  // pitch
+  if (pitch < drone.pitch) {
+    fl += abs_pitch;
+    fr += abs_pitch;
+    bl -= abs_pitch;
+    br -= abs_pitch;
+  } else {
+    fl -= abs_pitch;
+    fr -= abs_pitch;
+    bl += abs_pitch;
+    br += abs_pitch;
+  }
+  // roll
+  if (roll < drone.roll) {
+    fl -= abs_roll;
+    fr += abs_roll;
+    bl -= abs_roll;
+    br += abs_roll;
+  } else {
+    fl += abs_roll;
+    fr -= abs_roll;
+    bl += abs_roll;
+    br -= abs_roll;
+  }
+  // write the data to the servos
   servos[1].writeMicroseconds(fr);
   servos[3].writeMicroseconds(br);
   servos[0].writeMicroseconds(fl);
@@ -221,7 +236,6 @@ void setup() {
   Serial.begin(BAUD);
   claw.attach(CLAW);
   MPU::init();
-
   // Calibrate the gyro
   #define COUNT 2000
   for (int i = 0 ; i < COUNT; i++) {
@@ -229,11 +243,11 @@ void setup() {
     offset[0] += mpu.gyro_x;
     offset[1] += mpu.gyro_y;
     offset[2] += mpu.gyro_z;
+    delay(3);
   }
   offset[0] /= COUNT;
   offset[1] /= COUNT;
   offset[2] /= COUNT;
-
   // Make sure the connection is established
   byte pos = 45;
   byte flip = 1;
@@ -247,11 +261,10 @@ void setup() {
     delay(10);
   }
   claw.write(45);
-
+  // show the header of the program
   #ifdef DEBUG
   println("\n----- DroneClaw -----\n");
   #endif
-
   // Set up escs
   for (byte i = 0; i < SERVOS; i++) {
     servos[i] = Servo();
@@ -260,7 +273,6 @@ void setup() {
     #endif
     servos[i].attach(pwms[i]);
   }
-  
   // Handle the packets
   scheduler.repeat(process_packets);
 }
