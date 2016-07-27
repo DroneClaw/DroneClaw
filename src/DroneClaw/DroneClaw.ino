@@ -215,10 +215,10 @@ void control() {
     br -= abs_roll;
   }
   // write the data to the servos
-  servos[1].writeMicroseconds(fr);
-  servos[3].writeMicroseconds(br);
-  servos[0].writeMicroseconds(fl);
-  servos[2].writeMicroseconds(bl);
+  servos[FR_ESC].writeMicroseconds(fr);
+  servos[BR_ESC].writeMicroseconds(br);
+  servos[FL_ESC].writeMicroseconds(fl);
+  servos[BL_ESC].writeMicroseconds(bl);
 }
 
 #ifdef DEBUG
