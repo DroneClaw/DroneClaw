@@ -20,24 +20,28 @@
 #define PACKETS 4
 #define BAUD 9600
 
-#define FEQ (1.0 / (250.0 * 65.5))
-#define RAD (FEQ * (PI / 180.0))
-
 #ifdef DEBUG
 void println(String);
 #endif
 void attach();
 void all(byte);
 void working();
+void control();
 
 EventLoop &scheduler = EventLoop::get();
 
 const byte pwms[] = {FL_ESC, FR_ESC, BL_ESC, BR_ESC};
 
+struct data {
+  int throttle = 0;
+  int pitch = 0;
+  int roll = 0;
+} drone;
+
+int offset[3] = {0, 0, 0}; // x, y, z
 Servo servos[SERVOS];
 SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
-
 
 /** The data from the MPU in a struct form */
 class MPU {
@@ -116,7 +120,11 @@ Packet packets[] = {
   }),
   // Prime and arm packet, echo packet
   Packet(0x01, [] (SoftwareSerial &data) {
-    all(1);
+    static boolean init = false;
+    if (!init) {
+      all(1);
+      scheduler.repeat(control);
+    }
   }),
   // Send the pos to the claw
   Packet(0x02, [] (SoftwareSerial &data) {
@@ -129,24 +137,31 @@ Packet packets[] = {
   // Send data to all escs
   Packet(0x03, [] (SoftwareSerial &data) {
     int pos = data.parseInt();
-    all(pos);
+    //all(pos);
+    drone.throttle = pos;
+
+    //drone.pitch = data.parseInt();
+    //drone.roll = data.parseInt();
   }),
 };
 
 /** Will process the incomming packets */
 void process_packets() {
+  byte packet = -1;
   if (bluetooth.available()) {
-    byte packet = bluetooth.parseInt(); // Get the packet id
-    if (packet >= 0 && packet < PACKETS) {
-      #ifdef DEBUG
-      println("Packet ID: " + String(packet));
-      #endif
-      packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
-    } else {
-      #ifdef DEBUG
-      println("Not a valid packet id");
-      #endif
-    }
+    packet = bluetooth.parseInt(); // Get the packet id
+  } else if (Serial.available()) {
+    packet = Serial.parseInt();
+  }
+  if (packet >= 0 && packet < PACKETS) {
+    #ifdef DEBUG
+    println("Packet ID: " + String(packet));
+    #endif
+    packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
+  } else {
+    #ifdef DEBUG
+    //println("Not a valid packet id");
+    #endif
   }
 }
 
@@ -160,14 +175,45 @@ void all(const byte number) {
   }
 }
 
+/** The main control loop */
+void control() {
+  int throttle = drone.throttle;
+  
+  if (throttle < 1000) return;
+  
+  MPU mpu;
+  int pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
+  int roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
+  
+  if (pitch < drone.pitch) {
+    servos[2].writeMicroseconds(throttle + abs(pitch));
+    servos[3].writeMicroseconds(throttle + abs(pitch));
+    servos[0].writeMicroseconds(throttle);
+    servos[1].writeMicroseconds(throttle);
+    
+  } else {
+    servos[0].writeMicroseconds(throttle + abs(pitch));
+    servos[1].writeMicroseconds(throttle + abs(pitch));
+    servos[2].writeMicroseconds(throttle);
+    servos[3].writeMicroseconds(throttle);
+  }
+  
+  if (roll < drone.roll) {
+      servos[0].writeMicroseconds(throttle + abs(roll));
+      servos[2].writeMicroseconds(throttle + abs(roll));
+      servos[1].writeMicroseconds(throttle);
+      servos[3].writeMicroseconds(throttle);
+  } else {
+      servos[1].writeMicroseconds(throttle + abs(roll));
+      servos[3].writeMicroseconds(throttle + abs(roll));
+      servos[0].writeMicroseconds(throttle);
+      servos[2].writeMicroseconds(throttle);
+  }
+}
+
 #ifdef DEBUG
 /** Print a message to the Serial only when debug is defined */
 void println(String msg) {
-  static boolean begin = true;
-  if (begin) {
-    Serial.begin(BAUD);
-    begin = false;
-  }
   Serial.println(msg);
   bluetooth.println(msg);
 }
@@ -176,13 +222,26 @@ void println(String msg) {
 void setup() {
   // Get the sensors and ect ready before bluetooth connection is established
   bluetooth.begin(BAUD);
+  Serial.begin(BAUD);
   claw.attach(CLAW);
   MPU::init();
-  
+
+  // Calibrate the gyro
+  #define COUNT 2000
+  for (int i = 0 ; i < COUNT; i++) {
+    MPU mpu;
+    offset[0] += mpu.gyro_x;
+    offset[1] += mpu.gyro_y;
+    offset[2] += mpu.gyro_z;
+  }
+  offset[0] /= COUNT;
+  offset[1] /= COUNT;
+  offset[2] /= COUNT;
+
   // Make sure the connection is established
   byte pos = 45;
-  byte flip = 1; 
-  while(!bluetooth.available() || bluetooth.parseInt() != 0) {
+  byte flip = 1;
+  while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 && bluetooth.parseInt() != 0)) {
     if (pos > 135 || pos < 45) {
       flip *= -1;
       delay(250);
