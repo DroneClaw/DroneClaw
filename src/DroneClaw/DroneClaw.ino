@@ -9,11 +9,14 @@
 // Will enable debug code throught the program
 //#define DEBUG
 
-#define SERVOS 4
-#define FL_ESC 5
-#define FR_ESC 6
-#define BL_ESC 10
-#define BR_ESC 11
+#define FL_ESC 0
+#define FR_ESC 1
+#define BL_ESC 2
+#define BR_ESC 3
+#define FL_ESC_PIN 5
+#define FR_ESC_PIN 6
+#define BL_ESC_PIN 10
+#define BR_ESC_PIN 11
 #define CLAW 3
 #define BT_RX 8
 #define BT_TX 9
@@ -29,14 +32,13 @@ void working();
 void control();
 
 EventLoop &scheduler = EventLoop::get();
-const byte pwms[] = {FL_ESC, FR_ESC, BL_ESC, BR_ESC};
 struct data {
   int throttle = 0;
   int pitch = 0;
   int roll = 0;
 } drone;
 int offset[3] = {0, 0, 0}; // x, y, z
-Servo servos[SERVOS];
+Servo servos[4];
 SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
 
@@ -119,21 +121,28 @@ Packet packets[] = {
   Packet(0x01, [] (Stream &data) {
     static boolean init = false;
     if (!init) {
-      all(1);
+      servos[FR_ESC].write(1);
+      servos[FL_ESC].write(1);
+      servos[BR_ESC].write(1);
+      servos[BL_ESC].write(1);
       scheduler.repeat(control);
     }
   }),
   // Send the pos to the claw
   Packet(0x02, [] (Stream &data) {
-    int pos = data.parseInt();
     #ifdef DEBUG
+    int pos = data.parseInt();
     println("Claw Position: " + String(pos));
-    #endif
     claw.write(pos);
+    #else
+    claw.write(data.parseInt());
+    #endif
   }),
   // Send data to all escs
   Packet(0x03, [] (Stream &data) {
     drone.throttle = data.parseInt();
+    //drone.roll = data.parseInt();
+    //drone.pitch = data.parseInt();
   }),
 };
 
@@ -156,18 +165,8 @@ void process_packets() {
     }
   } else {
     #ifdef DEBUG
-    //println("Not a valid packet id");
+    println("Not a valid packet id");
     #endif
-  }
-}
-
-/** Send a value to all the motors */
-void all(const byte number) {
-  for (byte i = 0; i < SERVOS; i++) {
-    #ifdef DEBUG
-    println("Executing esc " + String(i + 1) + " with " + String(number));
-    #endif
-    servos[i].write(number);
   }
 }
 
@@ -176,10 +175,10 @@ void control() {
   int throttle = drone.throttle;
   // when throttle is less than 1000 disable escs
   if (throttle < 1000) {
-    servos[1].writeMicroseconds(0);
-    servos[3].writeMicroseconds(0);
-    servos[0].writeMicroseconds(0);
-    servos[2].writeMicroseconds(0);
+    servos[FR_ESC].write(0);
+    servos[FL_ESC].write(0);
+    servos[BR_ESC].write(0);
+    servos[BL_ESC].write(0);
     return;
   }
   // caculate the pids
@@ -236,6 +235,13 @@ void setup() {
   Serial.begin(BAUD);
   claw.attach(CLAW);
   MPU::init();
+  // close claw slowly before calibrate
+  byte pos = 45;
+  claw.write(pos);
+  while (pos < 145) {
+    claw.write(pos++);
+    delay(125);
+  }
   // Calibrate the gyro
   #define COUNT 2000
   for (int i = 0 ; i < COUNT; i++) {
@@ -243,13 +249,13 @@ void setup() {
     offset[0] += mpu.gyro_x;
     offset[1] += mpu.gyro_y;
     offset[2] += mpu.gyro_z;
-    delay(3);
+    delay(5);
   }
   offset[0] /= COUNT;
   offset[1] /= COUNT;
   offset[2] /= COUNT;
   // Make sure the connection is established
-  byte pos = 45;
+  pos = 45;
   byte flip = 1;
   while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 && bluetooth.parseInt() != 0)) {
     if (pos > 135 || pos < 45) {
@@ -266,15 +272,19 @@ void setup() {
   println("\n----- DroneClaw -----\n");
   #endif
   // Set up escs
-  for (byte i = 0; i < SERVOS; i++) {
-    servos[i] = Servo();
-    #ifdef DEBUG
-    println("Attaching esc " + String(i) + " to " + String(pwms[i]));
-    #endif
-    servos[i].attach(pwms[i]);
-  }
+  #ifdef DEBUG
+  println("Setting up the escs");
+  #endif
+  servos[FR_ESC] = Servo();
+  servos[FL_ESC] = Servo();
+  servos[BR_ESC] = Servo();
+  servos[BL_ESC] = Servo();
+  servos[FR_ESC].attach(FR_ESC_PIN);
+  servos[FL_ESC].attach(FL_ESC_PIN);
+  servos[BR_ESC].attach(BR_ESC_PIN);
+  servos[BL_ESC].attach(BL_ESC_PIN);
   // Handle the packets
-  scheduler.repeat(process_packets);
+  scheduler.repeat(process_packets, 250, MILLIS);
 }
 
 void loop() {
