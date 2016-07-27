@@ -7,7 +7,7 @@
 #include <Wire.h>
 
 // Will enable debug code throught the program
-#define DEBUG
+//#define DEBUG
 
 #define SERVOS 4
 #define FL_ESC 5
@@ -100,14 +100,14 @@ class MPU {
 class Packet {
   private:
     byte _id;
-    void (*_function)(SoftwareSerial&);
+    void (*_function)(Stream&);
   public:
-    inline Packet(byte id, void (*function)(SoftwareSerial&)) {
+    inline Packet(byte id, void (*function)(Stream&)) {
       _id = id;
       _function = function;
     }
     /** This will decode the data */
-    inline void decode(SoftwareSerial &data) {
+    inline void decode(Stream &data) {
       _function(data);
     }
 };
@@ -115,11 +115,11 @@ class Packet {
 /** The packets the drone knows how to handle */
 Packet packets[] = {
   // Ping packet used to make sure there is a connection
-  Packet(0x00, [] (SoftwareSerial &data) {
+  Packet(0x00, [] (Stream &data) {
     // todo if last heart beat fails do something
   }),
   // Prime and arm packet, echo packet
-  Packet(0x01, [] (SoftwareSerial &data) {
+  Packet(0x01, [] (Stream &data) {
     static boolean init = false;
     if (!init) {
       all(1);
@@ -127,7 +127,7 @@ Packet packets[] = {
     }
   }),
   // Send the pos to the claw
-  Packet(0x02, [] (SoftwareSerial &data) {
+  Packet(0x02, [] (Stream &data) {
     int pos = data.parseInt();
     #ifdef DEBUG
     println("Claw Position: " + String(pos));
@@ -135,7 +135,7 @@ Packet packets[] = {
     claw.write(pos);
   }),
   // Send data to all escs
-  Packet(0x03, [] (SoftwareSerial &data) {
+  Packet(0x03, [] (Stream &data) {
     int pos = data.parseInt();
     //all(pos);
     drone.throttle = pos;
@@ -157,7 +157,11 @@ void process_packets() {
     #ifdef DEBUG
     println("Packet ID: " + String(packet));
     #endif
-    packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
+    if (bluetooth.available()) {
+      packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
+    } else {
+      packets[packet].decode(Serial); // Lets the packet process the rest of the data
+    }
   } else {
     #ifdef DEBUG
     //println("Not a valid packet id");
@@ -184,31 +188,23 @@ void control() {
   MPU mpu;
   int pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
   int roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
+  pitch *= 2;
+  roll *= 2;
+  int fl = throttle, fr = throttle, bl = throttle, br = throttle;
   
-  if (pitch < drone.pitch) {
-    servos[2].writeMicroseconds(throttle + abs(pitch));
-    servos[3].writeMicroseconds(throttle + abs(pitch));
-    servos[0].writeMicroseconds(throttle);
-    servos[1].writeMicroseconds(throttle);
-    
-  } else {
-    servos[0].writeMicroseconds(throttle + abs(pitch));
-    servos[1].writeMicroseconds(throttle + abs(pitch));
-    servos[2].writeMicroseconds(throttle);
-    servos[3].writeMicroseconds(throttle);
-  }
-  
-  if (roll < drone.roll) {
-      servos[0].writeMicroseconds(throttle + abs(roll));
-      servos[2].writeMicroseconds(throttle + abs(roll));
-      servos[1].writeMicroseconds(throttle);
-      servos[3].writeMicroseconds(throttle);
-  } else {
-      servos[1].writeMicroseconds(throttle + abs(roll));
-      servos[3].writeMicroseconds(throttle + abs(roll));
-      servos[0].writeMicroseconds(throttle);
-      servos[2].writeMicroseconds(throttle);
-  }
+  bl += pitch;
+  br += pitch;
+  fl -= pitch;
+  fr -= pitch;
+  bl -= roll;
+  br += roll;
+  fl -= roll;
+  fr += roll;
+
+  servos[1].writeMicroseconds(fr);
+  servos[3].writeMicroseconds(br);
+  servos[0].writeMicroseconds(fl);
+  servos[2].writeMicroseconds(bl);
 }
 
 #ifdef DEBUG
