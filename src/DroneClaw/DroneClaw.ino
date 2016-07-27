@@ -32,7 +32,7 @@ void working();
 void control();
 
 EventLoop &scheduler = EventLoop::get();
-struct data {
+struct {
   int throttle = 0;
   int pitch = 0;
   int roll = 0;
@@ -185,34 +185,32 @@ void control() {
   MPU mpu;
   int pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
   int roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
-  pitch *= 1.1;
-  roll *= 2;
-  int abs_pitch = abs(pitch);
-  int abs_roll = abs(roll);
+  int pid_pitch = abs(pitch);
+  int pid_roll = abs(roll);
   int fl = throttle, fr = throttle, bl = throttle, br = throttle;
   // pitch
   if (pitch < drone.pitch) {
-    fl += abs_pitch;
-    fr += abs_pitch;
-    bl -= abs_pitch;
-    br -= abs_pitch;
+    fl += pid_pitch;
+    fr += pid_pitch;
+    bl -= pid_pitch;
+    br -= pid_pitch;
   } else {
-    fl -= abs_pitch;
-    fr -= abs_pitch;
-    bl += abs_pitch;
-    br += abs_pitch;
+    fl -= pid_pitch;
+    fr -= pid_pitch;
+    bl += pid_pitch;
+    br += pid_pitch;
   }
   // roll
   if (roll < drone.roll) {
-    fl -= abs_roll;
-    fr += abs_roll;
-    bl -= abs_roll;
-    br += abs_roll;
+    fl -= pid_roll;
+    fr += pid_roll;
+    bl -= pid_roll;
+    br += pid_roll;
   } else {
-    fl += abs_roll;
-    fr -= abs_roll;
-    bl += abs_roll;
-    br -= abs_roll;
+    fl += pid_roll;
+    fr -= pid_roll;
+    bl += pid_roll;
+    br -= pid_roll;
   }
   // write the data to the servos
   servos[FR_ESC].writeMicroseconds(fr);
