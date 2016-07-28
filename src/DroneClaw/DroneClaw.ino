@@ -81,16 +81,20 @@ class MPU {
     inline static void init() {
       Wire.begin();
       Wire.beginTransmission(ADDRESS);
-      Wire.write(0x6B);
+      Wire.write(0x6b);
       Wire.write(0);
       Wire.endTransmission();
       Wire.beginTransmission(ADDRESS);
-      Wire.write(0x1C);
+      Wire.write(0x1c);
       Wire.write(0x10);
       Wire.endTransmission();
       Wire.beginTransmission(ADDRESS);
-      Wire.write(0x1B);
+      Wire.write(0x1b);
       Wire.write(0x08);
+      Wire.endTransmission();
+      Wire.beginTransmission(ADDRESS);
+      Wire.write(0x1a);
+      Wire.write(0x03);
       Wire.endTransmission();
     }
 };
@@ -185,8 +189,8 @@ void control() {
   MPU mpu;
   int pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
   int roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
-  int pid_pitch = abs(pitch);
-  int pid_roll = abs(roll);
+  int pid_pitch = abs(pitch) * 1.9;
+  int pid_roll = abs(roll) * 1.9;
   int fl = throttle, fr = throttle, bl = throttle, br = throttle;
   // pitch
   if (pitch < drone.pitch) {
