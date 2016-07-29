@@ -37,7 +37,11 @@ struct {
   int pitch = 0;
   int roll = 0;
 } drone;
-int offset[3] = {0, 0, 0}; // x, y, z
+float p_error = 0;
+float r_error = 0;
+float i_pitch = 0;
+float i_roll = 0;
+long offset[3] = {}; // x, y, z
 Servo servos[4];
 SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
@@ -129,7 +133,7 @@ Packet packets[] = {
       servos[FL_ESC].write(1);
       servos[BR_ESC].write(1);
       servos[BL_ESC].write(1);
-      scheduler.repeat(control);
+      scheduler.repeat(control, 50, MILLIS);
     }
   }),
   // Send the pos to the claw
@@ -187,13 +191,32 @@ void control() {
   }
   // caculate the pids
   MPU mpu;
-  int pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
-  int roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
-  int pid_pitch = abs(pitch) * 1.9;
-  int pid_roll = abs(roll) * 1.9;
+  float pitch = map(mpu.gyro_y - offset[1], -4096, 4096, -90, 90);
+  float roll = map(mpu.gyro_x - offset[0], -4096, 4096, -90, 90);
+  // derivative
+  float d_pitch = pitch - drone.pitch - p_error;
+  float d_roll = roll - drone.roll - r_error;
+  // proportional
+  p_error = pitch - drone.pitch;
+  r_error = roll - drone.roll;
+  // intergral
+  i_pitch += p_error;
+  i_roll += r_error;
+  #define MAX_TILT 45
+  #define P_GAIN 1.5
+  #define I_GAIN 2.0
+  #define D_GAIN 1.0
+  int pid_pitch = (P_GAIN * p_error +  I_GAIN * i_pitch + D_GAIN * d_pitch) / 2;
+  int pid_roll = (P_GAIN * r_error +  I_GAIN * i_roll + D_GAIN * d_roll) / 2;
+  if (pid_pitch > MAX_TILT) {
+    pid_pitch = MAX_TILT;
+  }
+  if (pid_roll > MAX_TILT) {
+    pid_roll = MAX_TILT;
+  }
   int fl = throttle, fr = throttle, bl = throttle, br = throttle;
   // pitch
-  if (pitch < drone.pitch) {
+  if (pitch > drone.pitch) {
     fl += pid_pitch;
     fr += pid_pitch;
     bl -= pid_pitch;
@@ -205,7 +228,7 @@ void control() {
     br += pid_pitch;
   }
   // roll
-  if (roll < drone.roll) {
+  if (roll > drone.roll) {
     fl -= pid_roll;
     fr += pid_roll;
     bl -= pid_roll;
@@ -240,7 +263,7 @@ void setup() {
   // close claw slowly before calibrate
   byte pos = 45;
   claw.write(pos);
-  while (pos < 145) {
+  while (pos < 120) {
     claw.write(pos++);
     delay(125);
   }
@@ -260,7 +283,7 @@ void setup() {
   pos = 45;
   byte flip = 1;
   while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 && bluetooth.parseInt() != 0)) {
-    if (pos > 135 || pos < 45) {
+    if (pos > 120 || pos < 45) {
       flip *= -1;
       delay(250);
     }
