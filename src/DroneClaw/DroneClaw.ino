@@ -216,7 +216,7 @@ void control() {
   }
   int fl = throttle, fr = throttle, bl = throttle, br = throttle;
   // pitch
-  if (pitch > drone.pitch) {
+  if (pitch < drone.pitch) {
     fl += pid_pitch;
     fr += pid_pitch;
     bl -= pid_pitch;
@@ -228,7 +228,7 @@ void control() {
     br += pid_pitch;
   }
   // roll
-  if (roll > drone.roll) {
+  if (roll < drone.roll) {
     fl -= pid_roll;
     fr += pid_roll;
     bl -= pid_roll;
