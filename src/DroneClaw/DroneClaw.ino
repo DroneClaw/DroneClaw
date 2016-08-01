@@ -33,16 +33,16 @@ void control();
 
 EventLoop &scheduler = EventLoop::get();
 struct {
-  int throttle = 0;
-  int pitch = 0;
-  int roll = 0;
+  volatile int throttle = 0;
+  volatile int pitch = 0;
+  volatile int roll = 0;
 } drone;
 float p_error = 0;
 float r_error = 0;
 float i_pitch = 0;
 float i_roll = 0;
 long offset[3] = {}; // x, y, z
-Servo servos[4];
+Servo servos[4] = {};
 SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
 
@@ -180,9 +180,8 @@ void process_packets() {
 
 /** The main control loop */
 void control() {
-  int throttle = drone.throttle;
   // when throttle is less than 1000 disable escs
-  if (throttle < 1000) {
+  if (drone.throttle < 1000) {
     servos[FR_ESC].write(0);
     servos[FL_ESC].write(0);
     servos[BR_ESC].write(0);
@@ -202,43 +201,36 @@ void control() {
   // intergral
   i_pitch += p_error;
   i_roll += r_error;
-  #define MAX_TILT 45
-  #define P_GAIN 1.5
-  #define I_GAIN 2.0
-  #define D_GAIN 1.0
-  int pid_pitch = (P_GAIN * p_error +  I_GAIN * i_pitch + D_GAIN * d_pitch) / 2;
-  int pid_roll = (P_GAIN * r_error +  I_GAIN * i_roll + D_GAIN * d_roll) / 2;
+  #define MAX_TILT 150
+  #define P_GAIN 0.5
+  #define I_GAIN 0.02
+  #define D_GAIN 10.0
+  float pid_pitch = (P_GAIN * p_error +  I_GAIN * i_pitch + D_GAIN * d_pitch);
+  float pid_roll = (P_GAIN * r_error +  I_GAIN * i_roll + D_GAIN * d_roll);
   if (pid_pitch > MAX_TILT) {
     pid_pitch = MAX_TILT;
+  } else if (pid_pitch < -MAX_TILT) {
+    pid_pitch = -MAX_TILT;
   }
   if (pid_roll > MAX_TILT) {
     pid_roll = MAX_TILT;
+  } else if (pid_roll < -MAX_TILT) {
+    pid_roll = -MAX_TILT;
   }
-  int fl = throttle, fr = throttle, bl = throttle, br = throttle;
-  // pitch
-  if (pitch < drone.pitch) {
-    fl += pid_pitch;
-    fr += pid_pitch;
-    bl -= pid_pitch;
-    br -= pid_pitch;
-  } else {
-    fl -= pid_pitch;
-    fr -= pid_pitch;
-    bl += pid_pitch;
-    br += pid_pitch;
-  }
-  // roll
-  if (roll < drone.roll) {
-    fl -= pid_roll;
-    fr += pid_roll;
-    bl -= pid_roll;
-    br += pid_roll;
-  } else {
-    fl += pid_roll;
-    fr -= pid_roll;
-    bl += pid_roll;
-    br -= pid_roll;
-  }
+  int fl = drone.throttle - pid_pitch + pid_roll,
+  fr = drone.throttle - pid_pitch - pid_roll,
+  bl = drone.throttle + pid_pitch + pid_roll,
+  br = drone.throttle + pid_pitch - pid_roll;
+
+//Serial.print(fr);
+//Serial.print(",");
+//Serial.print(br);
+//Serial.print(",");
+//Serial.print(fl);
+//Serial.print(",");
+//Serial.print(bl);
+//Serial.println();
+
   // write the data to the servos
   servos[FR_ESC].writeMicroseconds(fr);
   servos[BR_ESC].writeMicroseconds(br);
@@ -280,15 +272,9 @@ void setup() {
   offset[1] /= COUNT;
   offset[2] /= COUNT;
   // Make sure the connection is established
-  pos = 45;
-  byte flip = 1;
+  unsigned long x = 0;
   while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 && bluetooth.parseInt() != 0)) {
-    if (pos > 120 || pos < 45) {
-      flip *= -1;
-      delay(250);
-    }
-    pos += flip;
-    claw.write(pos);
+    claw.write(38 * sin(x++  * 0.0125) + 83); // min of 45~, max of 120~, period of 258
     delay(10);
   }
   claw.write(45);
@@ -300,10 +286,6 @@ void setup() {
   #ifdef DEBUG
   println("Setting up the escs");
   #endif
-  servos[FR_ESC] = Servo();
-  servos[FL_ESC] = Servo();
-  servos[BR_ESC] = Servo();
-  servos[BL_ESC] = Servo();
   servos[FR_ESC].attach(FR_ESC_PIN);
   servos[FL_ESC].attach(FL_ESC_PIN);
   servos[BR_ESC].attach(BR_ESC_PIN);
