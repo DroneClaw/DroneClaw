@@ -221,16 +221,16 @@ void control() {
   fr = drone.throttle - pid_pitch - pid_roll,
   bl = drone.throttle + pid_pitch + pid_roll,
   br = drone.throttle + pid_pitch - pid_roll;
-
-//Serial.print(fr);
-//Serial.print(",");
-//Serial.print(br);
-//Serial.print(",");
-//Serial.print(fl);
-//Serial.print(",");
-//Serial.print(bl);
-//Serial.println();
-
+  #ifdef DEBUG // print motor values to graphs
+  Serial.print(fr);
+  Serial.print(",");
+  Serial.print(br);
+  Serial.print(",");
+  Serial.print(fl);
+  Serial.print(",");
+  Serial.print(bl);
+  Serial.println();
+  #endif
   // write the data to the servos
   servos[FR_ESC].writeMicroseconds(fr);
   servos[BR_ESC].writeMicroseconds(br);
