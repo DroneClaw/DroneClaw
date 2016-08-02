@@ -1,5 +1,7 @@
 #include "Packet.hpp"
 
+#define PACKETS 4
+
 /** The packets the drone knows how to handle */
 Packet packets[] = {
   // Ping packet used to make sure there is a connection

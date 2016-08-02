@@ -5,6 +5,8 @@
 #include <Servo.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
+#include "Vector.hpp"
+
 #include "MPU.hpp"
 
 // Will enable debug code throught the program
@@ -21,7 +23,6 @@
 #define CLAW 3
 #define BT_RX 8
 #define BT_TX 9
-#define PACKETS 4
 #define BAUD 9600
 
 EventLoop &scheduler = EventLoop::get();
@@ -182,3 +183,4 @@ void setup() {
 void loop() {
   scheduler.process(); // The backbone of the system
 }
+

@@ -2,8 +2,8 @@
     DroneClaw copyright 2016
 */
 
-#ifndef _PACKET
-#define _PACKET
+#ifndef _PACKET_
+#define _PACKET_
 
 /** The packet class that can encode and decode data*/
 class Packet {
@@ -22,3 +22,4 @@ class Packet {
 };
 
 #endif
+
