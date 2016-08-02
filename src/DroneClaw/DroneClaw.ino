@@ -5,6 +5,7 @@
 #include <Servo.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
+#include "MPU.hpp"
 
 // Will enable debug code throught the program
 //#define DEBUG
@@ -23,20 +24,17 @@
 #define PACKETS 4
 #define BAUD 9600
 
-#ifdef DEBUG
-void println(String);
-#endif
-void attach();
-void all(byte);
-void working();
-void control();
-
 EventLoop &scheduler = EventLoop::get();
+Servo servos[4] = {};
+SoftwareSerial bluetooth(BT_RX, BT_TX);
+Servo claw;
+
 struct {
   volatile int throttle = 0;
   volatile int pitch = 0;
   volatile int roll = 0;
 } drone;
+
 float p_error = 0;
 float r_error = 0;
 float i_pitch = 0;
@@ -45,142 +43,6 @@ float angle_pitch, angle_roll;
 boolean set_gyro_angles;
 float angle_roll_acc, angle_pitch_acc;
 float angle_pitch_output, angle_roll_output;
-long offset[3] = {}; // x, y, z
-Servo servos[4] = {};
-SoftwareSerial bluetooth(BT_RX, BT_TX);
-Servo claw;
-
-/** The data from the MPU in a struct form */
-class MPU {
-  #define ADDRESS 0x68
-  #define START_ADDRESS 0x3b
-  public:
-    long accel_x, accel_y, accel_z;
-    int gyro_x, gyro_y, gyro_z;
-    int temp;
-    /** Create the instance of this MPU struct with the values from the sensor */
-    inline MPU() {
-      Wire.beginTransmission(ADDRESS);
-      Wire.write(START_ADDRESS);
-      Wire.endTransmission();
-      Wire.requestFrom(ADDRESS, 14);
-      while (Wire.available() < 14);
-      accel_x = Wire.read() << 8 | Wire.read();
-      accel_y = Wire.read() << 8 | Wire.read();
-      accel_z = Wire.read() << 8 | Wire.read();
-      temp = Wire.read() << 8 | Wire.read();
-      gyro_x = Wire.read() << 8 | Wire.read();
-      gyro_y = Wire.read() << 8 | Wire.read();
-      gyro_z = Wire.read() << 8 | Wire.read();
-    }
-    /** Get the raw output from the MPU */
-    inline int* raw_output() {
-      int raw[7];
-      raw[0] = accel_x;
-      raw[1] = accel_y;
-      raw[2] = accel_z;
-      raw[3] = temp;
-      raw[4] = gyro_x;
-      raw[5] = gyro_y;
-      raw[6] = gyro_z;
-      return raw;
-    }
-    /** Inits the Wire lib and the sensors */
-    inline static void init() {
-      Wire.begin();
-      Wire.beginTransmission(ADDRESS);
-      Wire.write(0x6b);
-      Wire.write(0);
-      Wire.endTransmission();
-      Wire.beginTransmission(ADDRESS);
-      Wire.write(0x1c);
-      Wire.write(0x10);
-      Wire.endTransmission();
-      Wire.beginTransmission(ADDRESS);
-      Wire.write(0x1b);
-      Wire.write(0x08);
-      Wire.endTransmission();
-      Wire.beginTransmission(ADDRESS);
-      Wire.write(0x1a);
-      Wire.write(0x03);
-      Wire.endTransmission();
-    }
-};
-
-/** The packet class that can encode and decode data*/
-class Packet {
-  private:
-    byte _id;
-    void (*_function)(Stream&);
-  public:
-    inline Packet(byte id, void (*function)(Stream&)) {
-      _id = id;
-      _function = function;
-    }
-    /** This will decode the data */
-    inline void decode(Stream &data) {
-      _function(data);
-    }
-};
-
-/** The packets the drone knows how to handle */
-Packet packets[] = {
-  // Ping packet used to make sure there is a connection
-  Packet(0x00, [] (Stream &data) {
-    // todo if last heart beat fails do something
-  }),
-  // Prime and arm packet, echo packet
-  Packet(0x01, [] (Stream &data) {
-    static boolean init = false;
-    if (!init) {
-      servos[FR_ESC].write(1);
-      servos[FL_ESC].write(1);
-      servos[BR_ESC].write(1);
-      servos[BL_ESC].write(1);
-      scheduler.repeat(control, 50, MILLIS);
-    }
-  }),
-  // Send the pos to the claw
-  Packet(0x02, [] (Stream &data) {
-    #ifdef DEBUG
-    int pos = data.parseInt();
-    println("Claw Position: " + String(pos));
-    claw.write(pos);
-    #else
-    claw.write(data.parseInt());
-    #endif
-  }),
-  // Send data to all escs
-  Packet(0x03, [] (Stream &data) {
-    drone.throttle = data.parseInt();
-    //drone.roll = data.parseInt();
-    //drone.pitch = data.parseInt();
-  }),
-};
-
-/** Will process the incomming packets */
-void process_packets() {
-  byte packet = -1;
-  if (bluetooth.available()) {
-    packet = bluetooth.parseInt(); // Get the packet id
-  } else if (Serial.available()) {
-    packet = Serial.parseInt();
-  }
-  if (packet >= 0 && packet < PACKETS) {
-    #ifdef DEBUG
-    println("Packet ID: " + String(packet));
-    #endif
-    if (bluetooth.available()) {
-      packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
-    } else {
-      packets[packet].decode(Serial); // Lets the packet process the rest of the data
-    }
-  } else {
-    #ifdef DEBUG
-    println("Not a valid packet id");
-    #endif
-  }
-}
 
 /** The main control loop */
 void control() {
@@ -199,9 +61,9 @@ void control() {
   }
   // caculate the pids
   MPU mpu;
-  mpu.gyro_x -= offset[0];
-  mpu.gyro_y -= offset[1];
-  mpu.gyro_z -= offset[2];
+  mpu.gyro_x -= MPU::calibration()[0];
+  mpu.gyro_y -= MPU::calibration()[1];
+  mpu.gyro_z -= MPU::calibration()[2];
   // Gyro angle calculations
   angle_pitch += mpu.gyro_x * 0.0000611;
   angle_roll += mpu.gyro_y * 0.0000611;
@@ -294,17 +156,7 @@ void setup() {
     delay(50);
   }
   // Calibrate the gyro
-  #define COUNT 2000
-  for (int i = 0 ; i < COUNT; i++) {
-    MPU mpu;
-    offset[0] += mpu.gyro_x;
-    offset[1] += mpu.gyro_y;
-    offset[2] += mpu.gyro_z;
-    delay(5);
-  }
-  offset[0] /= COUNT;
-  offset[1] /= COUNT;
-  offset[2] /= COUNT;
+  MPU::calibrate();
   // Make sure the connection is established
   unsigned long x = 0;
   while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 && bluetooth.parseInt() != 0)) {
