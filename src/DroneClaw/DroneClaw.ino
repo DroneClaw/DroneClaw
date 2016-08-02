@@ -61,18 +61,17 @@ void control() {
   }
   // caculate the pids
   MPU mpu;
-  mpu.gyro_x -= MPU::calibration()[0];
-  mpu.gyro_y -= MPU::calibration()[1];
-  mpu.gyro_z -= MPU::calibration()[2];
+  Vector<int> gyro = mpu.gyro();
+  Vector<long> accel = mpu.accelerometer();
   // Gyro angle calculations
-  angle_pitch += mpu.gyro_x * 0.0000611;
-  angle_roll += mpu.gyro_y * 0.0000611;
-  angle_pitch += angle_roll * sin(mpu.gyro_z * 0.000001066);
-  angle_roll -= angle_pitch * sin(mpu.gyro_z * 0.000001066);
+  angle_pitch += gyro.x * 0.0000611;
+  angle_roll += gyro.y * 0.0000611;
+  angle_pitch += angle_roll * sin(gyro.z * 0.000001066);
+  angle_roll -= angle_pitch * sin(gyro.z * 0.000001066);
   // Accelerometer angle calculations
-  long acc_total_vector = sqrt((mpu.accel_x * mpu.accel_x) + (mpu.accel_y * mpu.accel_y ) + (mpu.accel_z * mpu.accel_z));
-  angle_pitch_acc = asin((float) mpu.accel_y /acc_total_vector) * 57.296;
-  angle_roll_acc = asin((float) mpu.accel_x / acc_total_vector) * 57.296;
+  long acc_total_vector = sqrt((accel.x * accel.x) + (accel.y * accel.y ) + (accel.z * accel.z));
+  angle_pitch_acc = asin((float) accel.y /acc_total_vector) * 57.296;
+  angle_roll_acc = asin((float) accel.x / acc_total_vector) * 57.296;
   if (set_gyro_angles) {
     angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;
     angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;
