@@ -70,14 +70,14 @@ class MPU {
     inline static void calibrate() {
       for (int i = 0 ; i < COUNT; i++) {
         MPU mpu;
-        _offset[0] += mpu._gyro[X];
-        _offset[1] += mpu._gyro[Y];
-        _offset[2] += mpu._gyro[Z];
+        _offset[X] += mpu._gyro[X];
+        _offset[Y] += mpu._gyro[Y];
+        _offset[Z] += mpu._gyro[Z];
         delay(5);
       }
-      _offset[0] /= COUNT;
-      _offset[1] /= COUNT;
-      _offset[2] /= COUNT;
+      _offset[X] /= COUNT;
+      _offset[Y] /= COUNT;
+      _offset[Z] /= COUNT;
     }
     /** Get the offset */
     inline static Vector<long> calibration() {

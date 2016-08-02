@@ -1,3 +1,7 @@
+/*
+    DroneClaw copyright 2016
+*/
+
 #include "Packet.hpp"
 
 #define PACKETS 4
@@ -60,3 +64,4 @@ void process_packets() {
     #endif
   }
 }
+

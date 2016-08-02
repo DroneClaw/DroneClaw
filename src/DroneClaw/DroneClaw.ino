@@ -6,11 +6,12 @@
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include "Vector.hpp"
-
+#include "PID.hpp"
 #include "MPU.hpp"
 
 // Will enable debug code throught the program
 //#define DEBUG
+#define DEBUG_MOTOR 1100
 
 #define FL_ESC 0
 #define FR_ESC 1
@@ -31,19 +32,10 @@ SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
 
 struct {
-  volatile int throttle = 0;
-  volatile int pitch = 0;
-  volatile int roll = 0;
+  volatile int throttle;
+  volatile int pitch;
+  volatile int roll;
 } drone;
-
-float p_error = 0;
-float r_error = 0;
-float i_pitch = 0;
-float i_roll = 0;
-float angle_pitch, angle_roll;
-boolean set_gyro_angles;
-float angle_roll_acc, angle_pitch_acc;
-float angle_pitch_output, angle_roll_output;
 
 /** The main control loop */
 void control() {
@@ -54,66 +46,18 @@ void control() {
     servos[BR_ESC].write(0);
     servos[BL_ESC].write(0);
     // reset pid
-    p_error = 0;
-    r_error = 0;
-    i_pitch = 0;
-    i_roll = 0;
+    PID::reset_pid();
     return;
   }
   // caculate the pids
-  MPU mpu;
-  Vector<int> gyro = mpu.gyro();
-  Vector<long> accel = mpu.accelerometer();
-  // Gyro angle calculations
-  angle_pitch += gyro.x * 0.0000611;
-  angle_roll += gyro.y * 0.0000611;
-  angle_pitch += angle_roll * sin(gyro.z * 0.000001066);
-  angle_roll -= angle_pitch * sin(gyro.z * 0.000001066);
-  // Accelerometer angle calculations
-  long acc_total_vector = sqrt((accel.x * accel.x) + (accel.y * accel.y ) + (accel.z * accel.z));
-  angle_pitch_acc = asin((float) accel.y /acc_total_vector) * 57.296;
-  angle_roll_acc = asin((float) accel.x / acc_total_vector) * 57.296;
-  if (set_gyro_angles) {
-    angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;
-    angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;
-  } else {
-    angle_pitch = angle_pitch_acc;
-    angle_roll = angle_roll_acc;
-    set_gyro_angles = true;
-  }
-  //To dampen the pitch and roll angles a complementary filter is used
-  angle_pitch_output = angle_pitch_output * 0.9 + angle_pitch * 0.1;
-  angle_roll_output = angle_roll_output * 0.9 + angle_roll * 0.1;
-  // derivative
-  float d_pitch = angle_pitch_output - drone.pitch - p_error;
-  float d_roll = angle_roll_output - drone.roll - r_error;
-  // proportional
-  p_error = angle_pitch_output - drone.pitch;
-  r_error = angle_roll_output - drone.roll;
-  // intergral
-  i_pitch += p_error;
-  i_roll += r_error;
-  #define MAX_TILT 200
-  #define P_GAIN 4.3
-  #define I_GAIN 0.04
-  #define D_GAIN 18.0
-  float pid_pitch = (P_GAIN * p_error +  I_GAIN * i_pitch + D_GAIN * d_pitch);
-  float pid_roll = (P_GAIN * r_error +  I_GAIN * i_roll + D_GAIN * d_roll);
-  if (pid_pitch > MAX_TILT) {
-    pid_pitch = MAX_TILT;
-  } else if (pid_pitch < -MAX_TILT) {
-    pid_pitch = -MAX_TILT;
-  }
-  if (pid_roll > MAX_TILT) {
-    pid_roll = MAX_TILT;
-  } else if (pid_roll < -MAX_TILT) {
-    pid_roll = -MAX_TILT;
-  }
-  int fl = drone.throttle - pid_pitch + pid_roll,
-  fr = drone.throttle - pid_pitch - pid_roll,
-  bl = drone.throttle + pid_pitch + pid_roll,
-  br = drone.throttle + pid_pitch - pid_roll;
+  PID pid;
+  float pid_pitch = pid.pitch(drone.pitch);
+  float pid_roll = pid.roll(drone.roll);
   #ifdef DEBUG // print motor values to graphs
+  int fl = drone.throttle - pid_pitch + pid_roll;
+  int fr = drone.throttle - pid_pitch - pid_roll;
+  int bl = drone.throttle + pid_pitch + pid_roll;
+  int br = drone.throttle + pid_pitch - pid_roll;
   Serial.print(fr);
   Serial.print(",");
   Serial.print(br);
@@ -122,17 +66,16 @@ void control() {
   Serial.print(",");
   Serial.print(bl);
   Serial.println();
-  #define DEBUG_MOTOR 1100
   servos[FR_ESC].writeMicroseconds(DEBUG_MOTOR);
   servos[BR_ESC].writeMicroseconds(DEBUG_MOTOR);
   servos[FL_ESC].writeMicroseconds(DEBUG_MOTOR);
   servos[BL_ESC].writeMicroseconds(DEBUG_MOTOR);
   #else
   // write the data to the servos
-  servos[FR_ESC].writeMicroseconds(fr);
-  servos[BR_ESC].writeMicroseconds(br);
-  servos[FL_ESC].writeMicroseconds(fl);
-  servos[BL_ESC].writeMicroseconds(bl);
+  servos[FR_ESC].writeMicroseconds(drone.throttle - pid_pitch - pid_roll);
+  servos[BR_ESC].writeMicroseconds(drone.throttle + pid_pitch - pid_roll);
+  servos[FL_ESC].writeMicroseconds(drone.throttle - pid_pitch + pid_roll);
+  servos[BL_ESC].writeMicroseconds(drone.throttle + pid_pitch + pid_roll);
   #endif
 }
 
