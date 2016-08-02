@@ -25,22 +25,21 @@
 #define I_YAW 0.02
 #define D_YAW 0.0
 
-// mpu
-static boolean _gyro_angles;
-static float _pitch_angle;
-static float _pitch_accelerometer;
-static float _pitch;
-static float _roll_angle;
-static float _roll_accelerometer;
-static float _roll;
-static float _yaw;
-// pid
-static float _pid_pitch[2] = {};
-static float _pid_roll[2] = {};
-static float _pid_yaw[2] = {};
-
 class PID {
   private:
+    // mpu
+    static boolean _gyro_angles;
+    static float _pitch_angle;
+    static float _pitch_accelerometer;
+    static float _pitch;
+    static float _roll_angle;
+    static float _roll_accelerometer;
+    static float _roll;
+    static float _yaw;
+    // pid
+    static float _pid_pitch[2];
+    static float _pid_roll[2];
+    static float _pid_yaw[2];
     /** The PID math */
     inline int pid(double p_gain, double i_gain, double d_gain, float &proportional, float &intergral, const float &delta, const float &mpu) {
       float derivative = mpu - delta - proportional;
@@ -112,6 +111,20 @@ class PID {
       _pid_yaw[2] = {};
     }
 };
+
+// mpu
+boolean PID::_gyro_angles;
+float PID::_pitch_angle;
+float PID::_pitch_accelerometer;
+float PID::_pitch;
+float PID::_roll_angle;
+float PID::_roll_accelerometer;
+float PID::_roll;
+float PID::_yaw;
+// pid
+float PID::_pid_pitch[2] = {};
+float PID::_pid_roll[2] = {};
+float PID::_pid_yaw[2] = {};
 
 #endif
 
