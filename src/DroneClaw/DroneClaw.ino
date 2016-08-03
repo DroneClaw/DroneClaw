@@ -9,8 +9,7 @@
 #include "PID.hpp"
 #include "MPU.hpp"
 
-// Will enable debug code throught the program
-//#define DEBUG
+//#define DEBUG // Will enable debug code throught the program
 #define DEBUG_MOTOR 1100
 
 #define FL_ESC 0
