@@ -106,7 +106,7 @@ class PID {
     }
     /** Can the current pitch, roll and yaw to output */
     inline float* to_vector() {
-      float vector[VECTOR_3D] = {_pitch, _roll, _yaw};
+      volatile float vector[VECTOR_3D] = {_pitch, _roll, _yaw}; // prevent it from freeing up space
       return vector;
     }
     /** Reset PID where needed */
