@@ -39,45 +39,43 @@ struct {
 
 /** The main control loop */
 void control() {
-  // when throttle is less than 1000 disable escs
-  if (drone.throttle < 1000) {
-    servos[FR_ESC].write(0);
-    servos[FL_ESC].write(0);
-    servos[BR_ESC].write(0);
-    servos[BL_ESC].write(0);
-    // reset pid
-    PID::reset_pid();
-    return;
-  }
   // caculate the pids
   PID pid;
   float pid_pitch = pid.pitch(drone.pitch);
   float pid_roll = pid.roll(drone.roll);
   float pid_yaw = pid.yaw(drone.yaw);
-  #ifdef DEBUG // print motor values to graphs
-  int fl = drone.throttle - pid_pitch + pid_roll - pid_yaw;
-  int fr = drone.throttle - pid_pitch - pid_roll + pid_yaw;
-  int bl = drone.throttle + pid_pitch + pid_roll + pid_yaw;
-  int br = drone.throttle + pid_pitch - pid_roll - pid_yaw;
-  Serial.print(fr);
-  Serial.print(",");
-  Serial.print(br);
-  Serial.print(",");
-  Serial.print(fl);
-  Serial.print(",");
-  Serial.print(bl);
-  Serial.println();
-  servos[FR_ESC].writeMicroseconds(DEBUG_MOTOR);
-  servos[BR_ESC].writeMicroseconds(DEBUG_MOTOR);
-  servos[FL_ESC].writeMicroseconds(DEBUG_MOTOR);
-  servos[BL_ESC].writeMicroseconds(DEBUG_MOTOR);
-  #else
-  // write the data to the servos
-  servos[FR_ESC].writeMicroseconds(drone.throttle - pid_pitch - pid_roll + pid_yaw);
-  servos[BR_ESC].writeMicroseconds(drone.throttle + pid_pitch - pid_roll - pid_yaw);
-  servos[FL_ESC].writeMicroseconds(drone.throttle - pid_pitch + pid_roll - pid_yaw);
-  servos[BL_ESC].writeMicroseconds(drone.throttle + pid_pitch + pid_roll + pid_yaw);
-  #endif
+  if (drone.throttle < 1000) { // when throttle is less than 1000 disable escs
+    servos[FR_ESC].write(0);
+    servos[FL_ESC].write(0);
+    servos[BR_ESC].write(0);
+    servos[BL_ESC].write(0);
+  } else { // write the data to the servos or graphs
+    #ifdef DEBUG // print motor values to graphs
+    int fl = drone.throttle - pid_pitch + pid_roll - pid_yaw;
+    int fr = drone.throttle - pid_pitch - pid_roll + pid_yaw;
+    int bl = drone.throttle + pid_pitch + pid_roll + pid_yaw;
+    int br = drone.throttle + pid_pitch - pid_roll - pid_yaw;
+    Serial.print(fr);
+    Serial.print(",");
+    Serial.print(br);
+    Serial.print(",");
+    Serial.print(fl);
+    Serial.print(",");
+    Serial.print(bl);
+    Serial.println();
+    // write the data to the servos
+    servos[FR_ESC].writeMicroseconds(DEBUG_MOTOR);
+    servos[BR_ESC].writeMicroseconds(DEBUG_MOTOR);
+    servos[FL_ESC].writeMicroseconds(DEBUG_MOTOR);
+    servos[BL_ESC].writeMicroseconds(DEBUG_MOTOR);
+    #else
+    // write the data to the servos
+    servos[FR_ESC].writeMicroseconds(drone.throttle - pid_pitch - pid_roll + pid_yaw);
+    servos[BR_ESC].writeMicroseconds(drone.throttle + pid_pitch - pid_roll - pid_yaw);
+    servos[FL_ESC].writeMicroseconds(drone.throttle - pid_pitch + pid_roll - pid_yaw);
+    servos[BL_ESC].writeMicroseconds(drone.throttle + pid_pitch + pid_roll + pid_yaw);
+    #endif
+  }
 }
 
 #ifdef DEBUG
