@@ -20,7 +20,7 @@ Packet packets[] = {
       servos[FL_ESC].write(1);
       servos[BR_ESC].write(1);
       servos[BL_ESC].write(1);
-      scheduler.repeat(control, 50, MILLIS);
+      scheduler.repeat(control, 4, MILLIS);
     }
   }),
   // Send the pos to the claw
@@ -36,8 +36,9 @@ Packet packets[] = {
   // Send data to all escs
   Packet(0x03, [] (Stream &data) {
     drone.throttle = data.parseInt();
-    //drone.roll = data.parseInt();
-    //drone.pitch = data.parseInt();
+    drone.roll = data.parseInt();
+    drone.pitch = data.parseInt();
+    drone.yaw = data.parseInt();
   }),
 };
 
@@ -58,10 +59,12 @@ void process_packets() {
     } else {
       packets[packet].decode(Serial); // Lets the packet process the rest of the data
     }
-  } else {
-    #ifdef DEBUG
-    println("Not a valid packet id");
-    #endif
   }
+  // toggle the boolean to show invalid packets
+  #if defined(DEBUG) && false
+  else {
+    println("Not a valid packet id");
+  }
+  #endif
 }
 
