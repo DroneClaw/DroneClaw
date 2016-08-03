@@ -22,7 +22,8 @@
 #define CLAW 3
 #define BT_RX 8
 #define BT_TX 9
-#define BAUD 9600
+#define BLUETOOTH_BAUD 9600
+#define SERIAL_BAUD 57600
 
 EventLoop scheduler;
 Servo servos[4] = {};
@@ -87,8 +88,8 @@ void println(String msg) {
 
 void setup() {
   // Get the sensors and ect ready before bluetooth connection is established
-  bluetooth.begin(BAUD);
-  Serial.begin(BAUD);
+  bluetooth.begin(BLUETOOTH_BAUD);
+  Serial.begin(SERIAL_BAUD);
   claw.attach(CLAW);
   MPU::init();
   // close claw slowly before calibrate
