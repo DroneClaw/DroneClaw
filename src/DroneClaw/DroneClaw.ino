@@ -104,7 +104,7 @@ void setup() {
   MPU::calibrate();
   // Make sure the connection is established
   unsigned long x = 0;
-  while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 && bluetooth.parseInt() != 0)) {
+  while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 || bluetooth.parseInt() != 0)) {
     claw.write(38 * sin(x++  * 0.0125) + 83); // min of 45~, max of 120~, period of 258
     delay(10);
   }
