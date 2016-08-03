@@ -56,17 +56,17 @@ class PID {
   public:
     inline PID() {
       MPU mpu;
-      Vector<int> gyro = mpu.gyro();
-      Vector<long> accel = mpu.accelerometer();
+      int* gyro = mpu.gyro();
+      long* accel = mpu.accelerometer();
       // Gyro angle calculations
-      _pitch_angle += gyro.y * FREQUENCY;
-      _roll_angle += gyro.x * FREQUENCY;
-      _pitch_angle -= _roll_angle * sin(gyro.z * FREQUENCY_RAD);
-      _roll_angle += _pitch_angle * sin(gyro.z * FREQUENCY_RAD);
+      _pitch_angle += gyro[Y] * FREQUENCY;
+      _roll_angle += gyro[X] * FREQUENCY;
+      _pitch_angle -= _roll_angle * sin(gyro[Z] * FREQUENCY_RAD);
+      _roll_angle += _pitch_angle * sin(gyro[Z] * FREQUENCY_RAD);
       // Accelerometer angle calculations
-      long accelerometer_total = sqrt(sq(accel.x) + sq(accel.y) + sq(accel.z));
-      _pitch_accelerometer = asin((float) accel.y / accelerometer_total) * RAD_TO_DEG;
-      _roll_accelerometer = asin((float) accel.x / accelerometer_total) * RAD_TO_DEG;
+      long accelerometer_total = sqrt(sq(accel[X]) + sq(accel[Y]) + sq(accel[Z]));
+      _pitch_accelerometer = asin((float) accel[Y] / accelerometer_total) * RAD_TO_DEG;
+      _roll_accelerometer = asin((float) accel[X] / accelerometer_total) * RAD_TO_DEG;
       if (_gyro_angles) {
         _pitch_angle = _pitch_angle * 0.9996 + _pitch_accelerometer * 0.0004;
         _roll_angle = _roll_angle * 0.9996 + _roll_accelerometer * 0.0004;
@@ -78,7 +78,7 @@ class PID {
       // To dampen the pitch and roll angles a complementary filter is used
       _pitch = _pitch * 0.9 + _pitch_angle * 0.1;
       _roll = _roll * 0.9 + _roll_angle * 0.1;
-      _yaw = gyro.z;
+      _yaw = gyro[X];
     }
     /** Caculate the PID for the pitch */
     inline float pitch(const float &pitch) {
@@ -103,6 +103,11 @@ class PID {
       Serial.println();
       #endif
       return pid(P_YAW, I_YAW, D_YAW, _pid_yaw[0], _pid_yaw[1], yaw, _yaw);
+    }
+    /** Can the current pitch, roll and yaw to output */
+    inline float* to_vector() {
+      float vector[VECTOR_3D] = {_pitch, _roll, _yaw};
+      return vector;
     }
     /** Reset PID where needed */
     inline static void reset_pid() {

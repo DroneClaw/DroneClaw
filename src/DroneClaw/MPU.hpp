@@ -5,7 +5,11 @@
 #ifndef _MPU_
 #define _MPU_
 
-#include "Vector.hpp"
+#define VECTOR_3D 3
+
+#define X 0
+#define Y 1
+#define Z 2
 
 #define COUNT 2000
 #define ADDRESS 0x68
@@ -35,16 +39,19 @@ class MPU {
       _gyro[Z] = Wire.read() << 8 | Wire.read();
     }
     /** Return a vector struct of the accelerometer data */
-    inline Vector<long> accelerometer() {
-      return Vector<long>(_accelerometer);
+    inline long* accelerometer() {
+      return _accelerometer;
     }
     /** Return a vector struct of the gyro data */
-    inline Vector<int> raw_gyro() {
-      return Vector<int>(_gyro);
+    inline int* raw_gyro() {
+      return _gyro;
     }
     /** Return a vector struct of the gyro data */
-    inline Vector<int> gyro() {
-      return Vector<int>(_gyro[X] - _offset[X], _gyro[Y] - _offset[Y], _gyro[Z] - _offset[Z]);
+    inline int* gyro() {
+      _gyro[X] -= _offset[X];
+      _gyro[Y] -= _offset[Y];
+      _gyro[Z] -= _offset[Z];
+      return _gyro;
     }
     /** Inits the Wire lib and the sensors */
     inline static void init() {
@@ -78,10 +85,6 @@ class MPU {
       _offset[X] /= COUNT;
       _offset[Y] /= COUNT;
       _offset[Z] /= COUNT;
-    }
-    /** Get the offset */
-    inline static Vector<long> calibration() {
-      return Vector<long>(_offset);
     }
 };
 

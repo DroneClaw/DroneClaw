@@ -5,7 +5,6 @@
 #include <Servo.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include "Vector.hpp"
 #include "PID.hpp"
 #include "MPU.hpp"
 

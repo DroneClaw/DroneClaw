@@ -4,7 +4,7 @@
 
 #include "Packet.hpp"
 
-#define PACKETS 4
+#define PACKETS 6
 
 /** The packets the drone knows how to handle */
 Packet packets[] = {
@@ -39,6 +39,25 @@ Packet packets[] = {
     drone.roll = data.parseInt();
     drone.pitch = data.parseInt();
     drone.yaw = data.parseInt();
+  }),
+  // Show pitch roll and yaw to the current stream
+  Packet(0x04, [] (Stream &data) {
+    PID pid;
+    float* raw_data = pid.to_vector();
+    data.print(raw_data[X]); // pitch
+    data.print(",");
+    data.print(raw_data[Y]); // roll
+    data.print(",");
+    data.println(raw_data[Z]); // yaw
+  }),
+  // Show pitch roll and yaw to the current stream
+  Packet(0x05, [] (Stream &data) {
+    PID pid;
+    data.print(pid.pitch(drone.pitch)); // pitch
+    data.print(",");
+    data.print(pid.roll(drone.roll)); // roll
+    data.print(",");
+    data.println(pid.yaw(drone.yaw)); // yaw
   }),
 };
 
