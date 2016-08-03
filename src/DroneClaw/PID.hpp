@@ -9,7 +9,7 @@
 
 //#define PITCH_ROLL_DEBUG // Show Pitch and Roll debug values
 
-#define FREQUENCY 0.0000611
+#define FREQUENCY 1 / (250 * 65.5)
 #define FREQUENCY_RAD FREQUENCY * DEG_TO_RAD
 #define MAX_TILT 400
 

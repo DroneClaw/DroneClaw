@@ -80,7 +80,7 @@ class MPU {
         _offset[X] += mpu._gyro[X];
         _offset[Y] += mpu._gyro[Y];
         _offset[Z] += mpu._gyro[Z];
-        delay(5);
+        delay(4); // Must be 4 to simulate clock cycle
       }
       _offset[X] /= COUNT;
       _offset[Y] /= COUNT;
