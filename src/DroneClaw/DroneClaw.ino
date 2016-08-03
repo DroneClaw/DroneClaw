@@ -24,7 +24,7 @@
 #define BT_TX 9
 #define BAUD 9600
 
-EventLoop &scheduler = EventLoop::get();
+EventLoop scheduler;
 Servo servos[4] = {};
 SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
