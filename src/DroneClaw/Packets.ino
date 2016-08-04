@@ -49,6 +49,7 @@ Packet packets[] = {
     data.print(raw_data[Y]); // roll
     data.print(",");
     data.println(raw_data[Z]); // yaw
+    delete raw_data;
   }),
   // Show pitch roll and yaw to the current stream
   Packet(0x05, [] (Stream &data) {
