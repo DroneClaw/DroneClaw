@@ -9,6 +9,7 @@
 
 //#define PITCH_ROLL_DEBUG // Show Pitch and Roll debug values
 
+#define DEG_SEC 1 / 65.5
 #define FREQUENCY 1 / (250 * 65.5)
 #define FREQUENCY_RAD FREQUENCY * DEG_TO_RAD
 #define MAX_TILT 400
@@ -65,8 +66,12 @@ class PID {
       _roll_angle += _pitch_angle * sin(gyro[Z] * FREQUENCY_RAD);
       // Accelerometer angle calculations
       long accelerometer_total = sqrt(sq(accel[X]) + sq(accel[Y]) + sq(accel[Z]));
-      _pitch_accelerometer = asin((float) accel[Y] / accelerometer_total) * RAD_TO_DEG;
-      _roll_accelerometer = asin((float) accel[X] / accelerometer_total) * RAD_TO_DEG;
+      if (abs(accel[Y]) < accelerometer_total) {
+        _pitch_accelerometer = asin((float) accel[Y] / accelerometer_total) * RAD_TO_DEG;
+      }
+      if (abs(accel[X]) < accelerometer_total) {
+        _roll_accelerometer = asin((float) accel[X] / accelerometer_total) * RAD_TO_DEG;
+      }
       if (_gyro_angles) {
         _pitch_angle = _pitch_angle * 0.9996 + _pitch_accelerometer * 0.0004;
         _roll_angle = _roll_angle * 0.9996 + _roll_accelerometer * 0.0004;
@@ -86,7 +91,7 @@ class PID {
       Serial.print(_pitch);
       Serial.print(",");
       #endif
-      return pid(P_PITCH, I_PITCH, D_PITCH, _pid_pitch[0], _pid_pitch[1], pitch, _pitch);
+      return pid(P_PITCH, I_PITCH, D_PITCH, _pid_pitch[0], _pid_pitch[1], pitch, _pitch * DEG_SEC);
     }
     /** Caculate the PID for the roll */
     inline float roll(const float &roll) {
@@ -94,7 +99,7 @@ class PID {
       Serial.print(_roll);
       Serial.print(",");
       #endif
-      return pid(P_ROLL, I_ROLL, D_ROLL, _pid_roll[0], _pid_roll[1], roll, _roll);
+      return pid(P_ROLL, I_ROLL, D_ROLL, _pid_roll[0], _pid_roll[1], roll, _roll * DEG_SEC);
     }
     /** Caculate the PID for the yaw */
     inline float yaw(const float &yaw) {
@@ -102,7 +107,7 @@ class PID {
       Serial.print(_yaw);
       Serial.println();
       #endif
-      return pid(P_YAW, I_YAW, D_YAW, _pid_yaw[0], _pid_yaw[1], yaw, _yaw);
+      return pid(P_YAW, I_YAW, D_YAW, _pid_yaw[0], _pid_yaw[1], yaw, _yaw * DEG_SEC);
     }
     /** Can the current pitch, roll and yaw to output */
     inline float* to_vector() {

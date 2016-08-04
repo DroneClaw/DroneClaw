@@ -43,7 +43,7 @@ void control() {
   PID pid;
   float pid_pitch = pid.pitch(drone.pitch);
   float pid_roll = pid.roll(drone.roll);
-  float pid_yaw = pid.yaw(drone.yaw);
+  float pid_yaw = 0;//pid.yaw(drone.yaw); // todo fix yaw
   if (drone.throttle < 1000) { // when throttle is less than 1000 disable escs
     servos[FR_ESC].write(0);
     servos[FL_ESC].write(0);
