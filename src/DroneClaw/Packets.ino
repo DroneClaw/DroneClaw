@@ -27,7 +27,7 @@ Packet packets[] = {
   Packet(0x02, [] (Stream &data) {
     #ifdef DEBUG
     int pos = data.parseInt();
-    println("Claw Position: " + String(pos));
+    data.println("Claw Position: " + String(pos));
     claw.write(pos);
     #else
     claw.write(data.parseInt());
@@ -64,27 +64,20 @@ Packet packets[] = {
 
 /** Will process the incomming packets */
 void process_packets() {
-  byte packet = -1;
-  if (bluetooth.available()) {
-    packet = bluetooth.parseInt(); // Get the packet id
-  } else if (Serial.available()) {
-    packet = Serial.parseInt();
-  }
-  if (packet >= 0 && packet < PACKETS) {
-    #ifdef DEBUG
-    println("Packet ID: " + String(packet));
-    #endif
-    if (bluetooth.available()) {
-      packets[packet].decode(bluetooth); // Lets the packet process the rest of the data
-    } else {
+  if (Serial.available()) {
+    byte packet = Serial.parseInt();
+    if (packet >= 0 && packet < PACKETS) {
+      #ifdef DEBUG
+      Serial.println("Packet ID: " + String(packet));
+      #endif
       packets[packet].decode(Serial); // Lets the packet process the rest of the data
     }
+    // toggle the boolean to show invalid packets
+    #if defined(DEBUG) && false
+    else {
+      Serial.println("Not a valid packet id");
+    }
+    #endif  
   }
-  // toggle the boolean to show invalid packets
-  #if defined(DEBUG) && false
-  else {
-    println("Not a valid packet id");
-  }
-  #endif
 }
 

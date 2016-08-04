@@ -3,12 +3,11 @@
 */
 #include <EventLoop.h>
 #include <Servo.h>
-#include <SoftwareSerial.h>
 #include <Wire.h>
 #include "PID.hpp"
 #include "MPU.hpp"
 
-//#define DEBUG // Will enable debug code throught the program
+#define DEBUG // Will enable debug code throught the program
 #define DEBUG_MOTOR 1100
 
 #define FL_ESC 0
@@ -20,14 +19,10 @@
 #define BL_ESC_PIN 10
 #define BR_ESC_PIN 11
 #define CLAW 3
-#define BT_RX 8
-#define BT_TX 9
-#define BLUETOOTH_BAUD 115200
 #define SERIAL_BAUD 115200
 
 EventLoop scheduler;
 Servo servos[4] = {};
-SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
 
 struct {
@@ -88,17 +83,8 @@ void fail_safe() {
   }
 }
 
-#ifdef DEBUG
-/** Print a message to the Serial only when debug is defined */
-void println(String msg) {
-  Serial.println(msg);
-  bluetooth.println(msg);
-}
-#endif
-
 void setup() {
   // Get the sensors and ect ready before bluetooth connection is established
-  bluetooth.begin(BLUETOOTH_BAUD);
   Serial.begin(SERIAL_BAUD);
   claw.attach(CLAW);
   MPU::init();
@@ -111,18 +97,18 @@ void setup() {
   MPU::calibrate();
   // Make sure the connection is established
   unsigned long x = 0;
-  while ((!Serial.available() && !bluetooth.available()) || (Serial.parseInt() != 0 || bluetooth.parseInt() != 0)) {
+  while (!Serial.available() || Serial.parseInt() != 0) {
     claw.write(38 * sin(x++  * 0.0125) + 83); // min of 45~, max of 120~, period of 258
     delay(10);
   }
   claw.write(45);
   // show the header of the program
   #ifdef DEBUG
-  println("\n----- DroneClaw -----\n");
+  Serial.println("\n----- DroneClaw -----\n");
   #endif
   // Set up escs
   #ifdef DEBUG
-  println("Setting up the escs");
+  Serial.println("Setting up the escs");
   #endif
   servos[FR_ESC].attach(FR_ESC_PIN);
   servos[FL_ESC].attach(FL_ESC_PIN);
