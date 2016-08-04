@@ -22,8 +22,8 @@
 #define CLAW 3
 #define BT_RX 8
 #define BT_TX 9
-#define BLUETOOTH_BAUD 9600
-#define SERIAL_BAUD 57600
+#define BLUETOOTH_BAUD 115200
+#define SERIAL_BAUD 115200
 
 EventLoop scheduler;
 Servo servos[4] = {};
@@ -31,10 +31,11 @@ SoftwareSerial bluetooth(BT_RX, BT_TX);
 Servo claw;
 
 struct {
-  volatile int throttle;
-  volatile int pitch;
-  volatile int roll;
-  volatile int yaw;
+  volatile unsigned long last_ping = 0;
+  volatile int throttle = 0;
+  volatile int pitch = 0;
+  volatile int roll = 0;
+  volatile int yaw = 0;
 } drone;
 
 /** The main control loop */
@@ -75,6 +76,15 @@ void control() {
     servos[FL_ESC].writeMicroseconds(drone.throttle - pid_pitch + pid_roll - pid_yaw);
     servos[BL_ESC].writeMicroseconds(drone.throttle + pid_pitch + pid_roll + pid_yaw);
     #endif
+  }
+}
+
+void fail_safe() {
+  if (drone.last_ping-- < 1) {
+    drone.throttle = 0;
+    drone.pitch = 0;
+    drone.roll = 0;
+    drone.yaw = 0;
   }
 }
 
@@ -119,7 +129,8 @@ void setup() {
   servos[BR_ESC].attach(BR_ESC_PIN);
   servos[BL_ESC].attach(BL_ESC_PIN);
   // Handle the packets
-  scheduler.repeat(process_packets, 250, MILLIS);
+  scheduler.repeat(process_packets, 50, MILLIS);
+  scheduler.repeat(fail_safe, 1, SECONDS);
 }
 
 void loop() {

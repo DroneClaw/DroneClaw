@@ -10,7 +10,7 @@
 Packet packets[] = {
   // Ping packet used to make sure there is a connection
   Packet(0x00, [] (Stream &data) {
-    // todo if last heart beat fails do something
+    drone.last_ping = 1;
   }),
   // Prime and arm packet, echo packet
   Packet(0x01, [] (Stream &data) {
