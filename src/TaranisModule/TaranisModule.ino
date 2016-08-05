@@ -52,6 +52,43 @@ void setup() {
     dump_eeprom();
     EEPROM.write(0, VERSION);
   }
+  // Connect the bluetooth to the drone
+  stream.print("$$$");
+  delay(1000);
+  stream.print("C,201602225787\r");
+  delay(5000);
+  stream.println(0);
+  delay(1000);
+  stream.println(1);
+  // send packets
+  scheduler.repeat(read_ppm, 50, MILLIS); // ppm frame
+  scheduler.repeat(ping_packet, 750, MILLIS);
+  scheduler.repeat(data_packet, 500, MILLIS);
+}
+
+/** The ping packet */
+void ping_packet() {
+  stream.println(0);
+}
+
+void read_ppm() {
+  unsigned long* tmp = read_channels();
+  delete tmp;
+}
+
+/** The data packet */
+void data_packet() {
+  unsigned long* channels = mapped_channels();
+  stream.print(3);
+  stream.print(" ");
+  stream.print(channels[0]);
+  stream.print(" ");
+  stream.print(channels[1]);
+  stream.print(" ");
+  stream.print(channels[2]);
+  stream.print(" ");
+  stream.println(channels[3]);
+  delete channels;
 }
 
 void loop() {
