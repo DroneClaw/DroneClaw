@@ -14,21 +14,21 @@ EventLoop scheduler;
 
 struct {
   // Channel A - throttle
-  int a_min = 187;
-  int a_mid = 757;
-  int a_max = 1211;
+  unsigned long a_min = 187;
+  unsigned long a_mid = 757;
+  unsigned long a_max = 1211;
   // Channel B - pitch
-  int b_min = 187;
-  int b_mid = 699;
-  int b_max = 1211;
+  unsigned long b_min = 187;
+  unsigned long b_mid = 699;
+  unsigned long b_max = 1211;
   // Channel C - roll
-  int c_min = 187;
-  int c_mid = 698;
-  int c_max = 1211;
+  unsigned long c_min = 187;
+  unsigned long c_mid = 698;
+  unsigned long c_max = 1211;
   // Channel D - yaw
-  int d_min = 189;
-  int d_mid = 702;
-  int d_max = 1211;
+  unsigned long d_min = 189;
+  unsigned long d_mid = 702;
+  unsigned long d_max = 1211;
 } config_eeprom;
 
 void setup() {
@@ -41,7 +41,7 @@ void setup() {
     while (!Serial);
     Serial.println("Get ready...");
     for (int i = 0 ; i < 1000 ; i++) {
-      int* tmp = read_channels(); // normlize the values
+      unsigned long* tmp = read_channels(); // normlize the values
       delete tmp;
     }
     delay_message(10);
@@ -56,15 +56,6 @@ void setup() {
 
 void loop() {
   scheduler.process();
-  int* channels = mapped_channels();
-  Serial.print(channels[0]);
-  Serial.print(",");
-  Serial.print(channels[1]);
-  Serial.print(",");
-  Serial.print(channels[2]);
-  Serial.print(",");
-  Serial.println(channels[3]);
-  delete channels;
 }
 
 /** Print current eeprom values to screen */
@@ -91,9 +82,9 @@ void dump_eeprom() {
 void calibrate_eeprom() {
   Serial.println("Center all sticks, with in 5 seconds");
   delay_message(5);
-  int* mids = read_channels();
+  unsigned long* mids = read_channels();
   Serial.println("Move all stick in round circles, for 10 seconds");
-  int* min_max = calibrate_sticks(10);
+  unsigned long* min_max = calibrate_sticks(10);
   Serial.println("Done");
   config_eeprom.a_mid = mids[0];
   config_eeprom.b_mid = mids[1];
@@ -122,40 +113,41 @@ void delay_message(int delta) {
 }
 
 /** Remap the channels to match what we need */
-int* mapped_channels() {
-  int* channels = read_channels();
-  channels[0] = map(channels[0], config_eeprom.a_min, config_eeprom.a_max, 1000, 1800);
+unsigned long* mapped_channels() {
+  unsigned long* channels = read_channels();
+  channels[0] = map(channels[0], config_eeprom.a_min, config_eeprom.a_max, 950, 1800);
   channels[1] = map(channels[1], config_eeprom.b_min, config_eeprom.b_max, -180, 180);
   channels[2] = map(channels[2], config_eeprom.c_min, config_eeprom.c_max, -180, 180);
   channels[3] = map(channels[3], config_eeprom.d_min, config_eeprom.d_max, -180, 180);
+  //channels[4] = map(channels[4], config_eeprom.d_min, config_eeprom.d_max, 45, 120);
   return channels;
 }
 
 /** Read the channels and return the array */
-int* read_channels() {
-  static int last_channel[CHANNELS] = {};
-  int* channels = new int[CHANNELS];
-  for (int i = 0 ; i < CHANNELS ; i++) {
+unsigned long* read_channels() {
+  static unsigned long last_channel[CHANNELS] = {};
+  unsigned long* channels = new unsigned long[CHANNELS];
+  for (unsigned int i = 0 ; i < CHANNELS ; i++) {
     last_channel[i] = channels[i] = 0.2 * last_channel[i] +  0.8 * pulseIn(PIN, HIGH);
   }
-  return channels;
+  return channels ;
 }
 
 /** Run the calibration and return the values min and max for each channel*/
-int* calibrate_sticks(int delta) {
+unsigned long* calibrate_sticks(int delta) {
   unsigned long stop_time = millis() + delta * 1000; // convert to millis from seconds
   int mins[CHANNELS] = {}, maxs[CHANNELS] = {};
-  int* channels = read_channels();
+  unsigned long* channels = read_channels();
   // init the channels with something
-  for (int i = 0 ; i < CHANNELS ; i++) {
+  for (unsigned int i = 0 ; i < CHANNELS ; i++) {
     mins[i] = channels[i];
     maxs[i] = channels[i];
   }
   // find the mins, mids, and maxs
   do {
     Serial.println(".");
-    int* channels = read_channels();
-    for (int i = 0 ; i < CHANNELS ; i++) {
+    unsigned long* channels = read_channels();
+    for (unsigned int i = 0 ; i < CHANNELS ; i++) {
       if (channels[i] < mins[i]) {
         mins[i] = channels[i];
       }
@@ -165,9 +157,9 @@ int* calibrate_sticks(int delta) {
     }
     delete channels;
   } while (millis() < stop_time);
-  int* values = new int[CHANNELS * 2];
-  int k = 0;
-  for (int i = 0; i < CHANNELS; i++) {
+  unsigned long* values = new unsigned long[CHANNELS * 2];
+  unsigned int k = 0;
+  for (unsigned int i = 0; i < CHANNELS; i++) {
     values[i++] = mins[k];
     values[i] = maxs[k++];
   }
