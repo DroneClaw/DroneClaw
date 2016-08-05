@@ -14,17 +14,17 @@
 #define FREQUENCY_RAD FREQUENCY * DEG_TO_RAD
 #define MAX_TILT 400
 
-#define P_ROLL 1.3
-#define I_ROLL 0.04
-#define D_ROLL 18.0
+#define P_ROLL 1
+#define I_ROLL 0
+#define D_ROLL 0
 
-#define P_PITCH 1.3
-#define I_PITCH 0.04
-#define D_PITCH 18.0
+#define P_PITCH 1
+#define I_PITCH 0
+#define D_PITCH 1
 
-#define P_YAW 4.0
-#define I_YAW 0.02
-#define D_YAW 0.0
+#define P_YAW 1
+#define I_YAW 0
+#define D_YAW 0
 
 class PID {
   private:
