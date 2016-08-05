@@ -1,13 +1,15 @@
 /*
     DroneClaw copyright 2016
 */
-#include <CurieEEPROM.h>
+#include <EEPROM.h>
 #include <EventLoop.h>
+#include <SoftwareSerial.h>
 
 #define PIN 2
 #define CHANNELS 4
 #define VERSION 0
 
+SoftwareSerial stream(10, 11);
 EventLoop scheduler;
 
 struct {
@@ -30,6 +32,7 @@ struct {
 } config_eeprom;
 
 void setup() {
+  stream.begin(115200);
   Serial.begin(9600);
   pinMode(PIN, INPUT);
   //EEPROM.get(sizeof(byte), config_eeprom);
