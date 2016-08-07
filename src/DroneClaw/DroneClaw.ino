@@ -114,8 +114,7 @@ void setup() {
   servos[FL_ESC].attach(FL_ESC_PIN);
   servos[BR_ESC].attach(BR_ESC_PIN);
   servos[BL_ESC].attach(BL_ESC_PIN);
-  // Handle the packets
-  scheduler.repeat(process_packets, 50, MILLIS);
+  // Handle the fail safe
   scheduler.repeat(fail_safe, 1, SECONDS);
 }
 
