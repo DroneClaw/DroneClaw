@@ -83,7 +83,7 @@ class PID {
       // To dampen the pitch and roll angles a complementary filter is used
       _pitch = _pitch * 0.9 + _pitch_angle * 0.1;
       _roll = _roll * 0.9 + _roll_angle * 0.1;
-      _yaw = gyro[X];
+      _yaw = gyro[Z];
     }
     /** Caculate the PID for the pitch */
     inline float pitch(const float &pitch) {
